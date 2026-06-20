@@ -11,7 +11,6 @@ from src.database.db import get_all_students
 def load_dlib_models():
     detector = dlib.get_frontal_face_detector() 
 
-
     sp = dlib.shape_predictor(
         face_recognition_models.pose_predictor_model_location()
     )
@@ -26,12 +25,11 @@ def get_face_embeddings(image_np):
     detector, sp, facerec = load_dlib_models()
     faces = detector(image_np, 1)
 
-    encodings= []
+    encodings = []
 
     for face in faces:
         shape = sp(image_np, face)
         face_descriptor = facerec.compute_face_descriptor(image_np, shape, 1) #128 embedding
-
         encodings.append(np.array(face_descriptor))
     return encodings
 
@@ -39,7 +37,6 @@ def get_face_embeddings(image_np):
 def get_trained_model():
     X = []
     y = []
-
 
     student_db = get_all_students()
 
@@ -50,9 +47,9 @@ def get_trained_model():
         embedding = student.get('face_embedding')
         if embedding:
             X.append(np.array(embedding))
-            y.append(student.get('student_id'))
+            y.append(int(student.get('student_id')))  # Ensure ID is an integer
 
-    if len(X) ==0:
+    if len(X) == 0:
         return 0
     
     clf = SVC(kernel='linear', probability=True, class_weight='balanced')
@@ -62,7 +59,7 @@ def get_trained_model():
     except ValueError:
         pass
 
-    return {'clf': clf, 'X':X, "y":y}
+    return {'clf': clf, 'X': X, "y": y}
 
 
 def train_classifier():
@@ -72,13 +69,11 @@ def train_classifier():
 
 def predict_attendance(class_image_np):
     encodings = get_face_embeddings(class_image_np)
-
     detected_student = {}
-
 
     model_data = get_trained_model()
 
-    if not model_data:
+    if not model_data or model_data == 0:
         return detected_student, [], len(encodings)
     
     clf = model_data['clf']
@@ -88,17 +83,17 @@ def predict_attendance(class_image_np):
     all_students = sorted(list(set(y_train)))
 
     for encoding in encodings:
-        if len(all_students)>= 2:
-            predicted_id= int(clf.predict([encoding])[0])
-        else:
-            predicted_id = int(all_students[0])
+        # 1. Calculate direct Euclidean distance to ALL faces in the database to find the absolute closest match
+        distances = [np.linalg.norm(np.array(student_emb) - encoding) for student_emb in X_train]
+        best_match_idx = np.argmin(distances)
+        best_match_score = distances[best_match_idx]
+        predicted_id = y_train[best_match_idx]
 
-        student_embedding = X_train[y_train.index(predicted_id)]
+        # 2. Strict Threshold: 0.50 is the perfect Sweet Spot for Dlib Face Recognition
+        resemblance_threshold = 0.50
 
-        best_match_score = np.linalg.norm(student_embedding - encoding)
-
-        resemblance_threshold = 0.6
-
+        # 3. Only accept the login if the mathematical distance is closer than the threshold
         if best_match_score <= resemblance_threshold:
             detected_student[predicted_id] = True
+            
     return detected_student, all_students, len(encodings)
