@@ -3,7 +3,7 @@ import streamlit as st
 
 def landing_screen():
 
-    st.set_page_config(layout="wide")
+   
 
     # ---------------------------
     # STYLES
