@@ -81,25 +81,26 @@ Note: Make sure your system has CMake installed locally before running the pip c
 
 Bash
 pip install -r requirements.txt
-4. Configure Cloud Secrets
-Create a .env file in the root directory:
-
-Code snippet
+4. Configure Local Environment Variables
+Create a file named .env in the root directory of your project and add your database credentials:
 SUPABASE_URL=your_supabase_project_url
 SUPABASE_KEY=your_supabase_anon_or_service_key
-5. Start the Streamlit Dashboard Local Server
-Bash
+
+5. Run the Dashboard Locally
+Launch the Streamlit local development server using your terminal:
 streamlit run app.py
 ☁️ Deployment Guide (Streamlit Cloud)
-Commit and push your code repository cleanly to GitHub.
+Follow these steps to deploy your dashboard live to the web:
 
-Log into the Streamlit Cloud Dashboard and choose New App.
+a.Push Code to GitHub: Ensure your latest code changes are fully committed and pushed to your repository.
 
-Select your repository, target branch, and set the Main file path entry field to app.py.
+b.Create New App: Log into the Streamlit Community Cloud dashboard and click New App.
 
-Go to Advanced Settings ➡️ Secrets and paste your credentials inside the secure TOML configurations input field:
+c.Configure Repository: Select your repository name, choose your main branch, and set the Main file path to app.py.
 
-Ini, TOML
+d.Configure Production Secrets: * Before clicking deploy, click on Advanced Settings ➡️ Secrets.
+
+e.Paste your production credentials into the secure TOML configuration input field:
 SUPABASE_URL = "your_supabase_project_url"
 SUPABASE_KEY = "your_supabase_anon_or_service_key"
-Click Deploy! 🚀
+f.Launch: Click Deploy! 🚀
