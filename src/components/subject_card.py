@@ -13,9 +13,15 @@ def subject_card(name, code, section, stats=None, footer_callback=None):
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
         """
         for icon, label, value in stats:
-            html += f'<div style="background: #EB459E10; padding:5px 12px; border-radius:12px; font-size:0.9rem">{icon} <b style="color:black;">{value}</b> <span style="color:black;">{label}</span> </div>'
+            html += f'''
+            <div style="background: #EB459E10; padding:5px 12px; border-radius:12px; font-size:0.9rem; color:black;">
+                {icon} <span style="color:black; font-weight:700;">{value}</span> <span style="color:black;">{label}</span>
+            </div>
+            '''
         
         html += "</div>"
+
+    html += "</div>"
 
     st.markdown(html, unsafe_allow_html=True)
 
