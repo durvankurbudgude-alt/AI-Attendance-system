@@ -1,99 +1,127 @@
 import dlib
 import numpy as np
 import face_recognition_models
-from sklearn.svm import SVC
-import streamlit as st   
+import streamlit as st
 
 from src.database.db import get_all_students
 
 
+# ---------------------------------------------------
+# Load Dlib models once and cache them
+# ---------------------------------------------------
 @st.cache_resource
 def load_dlib_models():
-    detector = dlib.get_frontal_face_detector() 
+    detector = dlib.get_frontal_face_detector()
 
-    sp = dlib.shape_predictor(
+    shape_predictor = dlib.shape_predictor(
         face_recognition_models.pose_predictor_model_location()
     )
 
-    facerec = dlib.face_recognition_model_v1(
+    face_rec_model = dlib.face_recognition_model_v1(
         face_recognition_models.face_recognition_model_location()
     )
 
-    return detector, sp, facerec
+    return detector, shape_predictor, face_rec_model
 
+
+# ---------------------------------------------------
+# Extract face embeddings from an image
+# Returns a list of 128D numpy embeddings
+# ---------------------------------------------------
 def get_face_embeddings(image_np):
-    detector, sp, facerec = load_dlib_models()
+    detector, shape_predictor, face_rec_model = load_dlib_models()
     faces = detector(image_np, 1)
 
-    encodings = []
+    embeddings = []
 
     for face in faces:
-        shape = sp(image_np, face)
-        face_descriptor = facerec.compute_face_descriptor(image_np, shape, 1) #128 embedding
-        encodings.append(np.array(face_descriptor))
-    return encodings
+        shape = shape_predictor(image_np, face)
+        descriptor = face_rec_model.compute_face_descriptor(image_np, shape, 1)
+        embeddings.append(np.array(descriptor))
 
-@st.cache_resource
-def get_trained_model():
-    X = []
-    y = []
-
-    student_db = get_all_students()
-
-    if not student_db:
-        return None
-    
-    for student in student_db:
-        embedding = student.get('face_embedding')
-        if embedding:
-            X.append(np.array(embedding))
-            y.append(int(student.get('student_id')))  # Ensure ID is an integer
-
-    if len(X) == 0:
-        return 0
-    
-    clf = SVC(kernel='linear', probability=True, class_weight='balanced')
-
-    try:
-        clf.fit(X, y)
-    except ValueError:
-        pass
-
-    return {'clf': clf, 'X': X, "y": y}
+    return embeddings
 
 
+# ---------------------------------------------------
+# Load all registered student face embeddings from DB
+# Returns a list of dictionaries:
+# [
+#   {
+#       "student_id": 1,
+#       "name": "Akash",
+#       "embedding": np.array([...])
+#   },
+#   ...
+# ]
+# ---------------------------------------------------
+@st.cache_data(show_spinner=False)
+def get_registered_student_embeddings():
+    students = get_all_students()
+    registered_students = []
+
+    for student in students:
+        face_embedding = student.get("face_embedding")
+
+        if face_embedding:
+            registered_students.append({
+                "student_id": student["student_id"],
+                "name": student["name"],
+                "embedding": np.array(face_embedding)
+            })
+
+    return registered_students
+
+
+# ---------------------------------------------------
+# Refresh cached student embeddings after a new student
+# is registered
+# ---------------------------------------------------
 def train_classifier():
-    st.cache_resource.clear()
-    model_data = get_trained_model()
-    return bool(model_data)
+    # Kept same function name so your existing student_screen
+    # code does not break.
+    get_registered_student_embeddings.clear()
+    updated_students = get_registered_student_embeddings()
+    return len(updated_students) > 0
 
-def predict_attendance(class_image_np):
+
+# ---------------------------------------------------
+# Predict attendance from a classroom image
+#
+# Returns:
+# detected_students -> {student_id: True, ...}
+# all_student_ids   -> [1, 2, 3, ...]
+# num_faces         -> total number of faces found in image
+# ---------------------------------------------------
+def predict_attendance(class_image_np, resemblance_threshold=0.50):
     encodings = get_face_embeddings(class_image_np)
-    detected_student = {}
+    detected_students = {}
 
-    model_data = get_trained_model()
+    registered_students = get_registered_student_embeddings()
 
-    if not model_data or model_data == 0:
-        return detected_student, [], len(encodings)
-    
-    clf = model_data['clf']
-    X_train = model_data['X']
-    y_train = model_data['y']
+    # Number of faces detected in the classroom image
+    num_faces = len(encodings)
 
-    all_students = sorted(list(set(y_train)))
+    # If no registered students are available in DB
+    if not registered_students:
+        return detected_students, [], num_faces
 
+    all_student_ids = [student["student_id"] for student in registered_students]
+
+    # Compare every detected face embedding with all registered student embeddings
     for encoding in encodings:
-        # 1. Calculate direct Euclidean distance to ALL faces in the database to find the absolute closest match
-        distances = [np.linalg.norm(np.array(student_emb) - encoding) for student_emb in X_train]
-        best_match_idx = np.argmin(distances)
-        best_match_score = distances[best_match_idx]
-        predicted_id = y_train[best_match_idx]
+        best_match_student_id = None
+        best_match_distance = float("inf")
 
-        # 2. Strict Threshold: 0.50 is the perfect Sweet Spot for Dlib Face Recognition
-        resemblance_threshold = 0.50
+        for student in registered_students:
+            stored_embedding = student["embedding"]
+            distance = np.linalg.norm(stored_embedding - encoding)
 
-        # 3. Only accept the login if the mathematical distance is closer than the threshold
-        if best_match_score <= resemblance_threshold:
-            detected_student[predicted_id] = True
-            
-    return detected_student, all_students, len(encodings)
+            if distance < best_match_distance:
+                best_match_distance = distance
+                best_match_student_id = student["student_id"]
+
+        # Accept match only if closest face is within threshold
+        if best_match_student_id is not None and best_match_distance <= resemblance_threshold:
+            detected_students[best_match_student_id] = True
+
+    return detected_students, all_student_ids, num_faces
