@@ -141,7 +141,6 @@ def student_screen():
             st.rerun()
 
     # ---------------- WHATSAPP / IN-APP BROWSER DETECTION ----------------
-    # Safe check context headers for webview environments
     user_agent = st.context.headers.get("User-Agent", "")
     
     if "WhatsApp" in user_agent:
@@ -157,6 +156,14 @@ def student_screen():
 
     # ---------------- REGULAR FACE LOGIN FLOW ----------------
     st.header("Login using FaceID", text_alignment='center')
+    
+    # MANUAL JOIN CODE INPUT SYSTEM
+    st.markdown("---")
+    join_code_input = st.text_input("🔑 Have a Subject Join Code? Enter it here:", placeholder="E.g. hin123")
+    if join_code_input:
+        st.query_params['join-code'] = join_code_input.strip()
+    st.markdown("---")
+    
     st.space()
     st.space()
 
@@ -229,7 +236,7 @@ def student_screen():
                                 new_name,
                                 face_embedding=face_emb,
                                 voice_embedding=voice_emb
-                              )
+                            )
 
                             if response_data:
                                 train_classifier()
@@ -238,7 +245,7 @@ def student_screen():
                                 st.session_state['student_data'] = response_data[0]
                                 st.toast(f"Profile Created! Hi {new_name}!")
                                 time.sleep(1)
-                                st.rerun()
+                                rerun()
                             else:
                                 st.error("Failed to create student profile.")
                         else:
