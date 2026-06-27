@@ -141,7 +141,10 @@ def student_screen():
             st.rerun()
 
     # ---------------- WHATSAPP / IN-APP BROWSER DETECTION ----------------
-    user_agent = st.context.headers.get("User-Agent", "")
+    try:
+        user_agent = st.context.headers.get("User-Agent", "")
+    except Exception:
+        user_agent = ""
     
     if "WhatsApp" in user_agent:
         st.space()
@@ -245,7 +248,7 @@ def student_screen():
                                 st.session_state['student_data'] = response_data[0]
                                 st.toast(f"Profile Created! Hi {new_name}!")
                                 time.sleep(1)
-                                rerun()
+                                st.rerun()  # Fixed typo: changed from rerun() to st.rerun()
                             else:
                                 st.error("Failed to create student profile.")
                         else:
