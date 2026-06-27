@@ -82,7 +82,7 @@ def teacher_dashboard():
     if st.session_state.current_teacher_tab == "take_attendance":
         teacher_tab_take_attendance()
     if st.session_state.current_teacher_tab == "manage_subjects":
-        teacher_tab_manage_subjects() 
+        teacher_tab_manage_subjects()
     if st.session_state.current_teacher_tab == "attendance_records":
         teacher_tab_attendance_records()
 
@@ -199,12 +199,10 @@ def teacher_tab_take_attendance():
 
 
 
+
 def teacher_tab_manage_subjects():
-
     teacher_id = st.session_state.teacher_data['teacher_id']
-
     col1, col2 = st.columns(2)
-
     with col1:
         st.header('Manage Subjects', width='stretch')
 
@@ -212,39 +210,27 @@ def teacher_tab_manage_subjects():
         if st.button('Create New Subject', width='stretch'):
             create_subject_dialog(teacher_id)
 
-    # LIST ALL SUBJECTS
+
+    # LIST all SUBJECTS
     subjects = get_teacher_subjects(teacher_id)
-
     if subjects:
-
         for sub in subjects:
-
             stats = [
                 ("🫂", "Students", sub['total_students']),
                 ("🕰️", "Classes", sub['total_classes']),
             ]
+        def share_btn():
+            if st.button(f"Share Code: {sub['name']}", key=f"share_{sub['subject_code']}", icon=":material/share:"):
+                share_subject_dialog(sub['name'], sub['subject_code'])
+            st.space()
 
-            def share_btn():
-                if st.button(
-                    f"Share Code: {sub['name']}",
-                    key=f"share_{sub['subject_code']}",
-                    icon=":material/share:"
-                ):
-                    share_subject_dialog(
-                        sub['name'],
-                        sub['subject_code']
-                    )
-
-                st.space()
-
-            subject_card(
-                name=sub['name'],
-                code=sub['subject_code'],
-                section=sub['section'],
-                stats=stats,
-                footer_callback=share_btn
-            )
-
+        subject_card(
+            name = sub['name'],
+            code = sub['subject_code'],
+            section = sub['section'],
+            stats=stats,
+            footer_callback=share_btn
+        )
     else:
         st.info("NO SUBJECTS FOUND. CREATE ONE ABOVE")
 
@@ -303,7 +289,6 @@ def login_teacher(username, password):
         return False
     
     teacher = teacher_login(username, password)
-    st.write("LOGIN RESPONSE:", teacher)
 
     if teacher:
         st.session_state.user_role ='teacher'
@@ -354,29 +339,17 @@ def teacher_screen_login():
 
 
 def register_teacher(teacher_username, teacher_name, teacher_pass, teacher_pass_confirm):
-
     if not teacher_username or not teacher_name or not teacher_pass:
         return False, "All Fields are required!"
-
     if check_teacher_exists(teacher_username):
         return False, "Username already taken"
-
     if teacher_pass != teacher_pass_confirm:
         return False, "Password doesn't match"
-
+    
     try:
-        response = create_teacher(
-            teacher_username,
-            teacher_pass,
-            teacher_name
-        )
-
-        st.write(response)
-
-        return True, "Successfully Created! Login Now"
-
+        create_teacher(teacher_username, teacher_pass, teacher_name)
+        return True, "Sucessfully Created! Login Now"
     except Exception as e:
-        st.write(e)
         return False, "Unexpected Error!"
     
 
@@ -425,5 +398,3 @@ def teacher_screen_register():
     with btnc2:
         if st.button('Login Instead', type="primary", icon=':material/passkey:', width='stretch'):
             st.session_state.teacher_login_type = 'login'
-
-    footer_dashboard()
