@@ -84,7 +84,6 @@ def student_dashboard():
     cols = st.columns(2)
 
     for i, sub_node in enumerate(subjects):
-        # Depending on your DB response structure
         sub = sub_node.get("subjects", sub_node)
 
         sid = sub.get("subject_id")
@@ -141,6 +140,22 @@ def student_screen():
             st.session_state['login_type'] = None
             st.rerun()
 
+    # ---------------- WHATSAPP / IN-APP BROWSER DETECTION ----------------
+    # Safe check context headers for webview environments
+    user_agent = st.context.headers.get("User-Agent", "")
+    
+    if "WhatsApp" in user_agent:
+        st.space()
+        st.error("⚠️ In-app browsers do not support FaceID scanning hardware.")
+        st.info(
+            "To mark your attendance, please tap the **three dots** (or menu icon) "
+            "in the top-right corner of your screen and select **'Open in Browser'** "
+            "(Chrome / Safari)."
+        )
+        footer_dashboard()
+        return
+
+    # ---------------- REGULAR FACE LOGIN FLOW ----------------
     st.header("Login using FaceID", text_alignment='center')
     st.space()
     st.space()
@@ -148,7 +163,6 @@ def student_screen():
     show_registration = False
     photo_source = st.camera_input("Position your face in the center")
 
-    # ---------------- FACE LOGIN FLOW ----------------
     if photo_source:
         img = np.array(Image.open(photo_source))
 
@@ -215,7 +229,7 @@ def student_screen():
                                 new_name,
                                 face_embedding=face_emb,
                                 voice_embedding=voice_emb
-                            )
+                              )
 
                             if response_data:
                                 train_classifier()
